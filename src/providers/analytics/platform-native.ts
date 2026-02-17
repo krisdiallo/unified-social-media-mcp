@@ -1,14 +1,11 @@
 // ---------------------------------------------------------------------------
 // Analytics provider — delegates to each platform's native metrics endpoints
-//
-// This is the "glue" provider that pulls metrics from whichever platform
-// providers are configured. Swap this out for a third-party analytics tool
-// (e.g. Sprout Social, Hootsuite Analytics) by implementing AnalyticsProvider.
 // ---------------------------------------------------------------------------
 
 import type {
   AnalyticsProvider,
   AnalyticsSummary,
+  AudienceInsights,
   PlatformName,
   PlatformProvider,
   PostMetrics,
@@ -39,14 +36,13 @@ export class PlatformNativeAnalyticsProvider implements AnalyticsProvider {
     periodStart: string,
     periodEnd: string,
   ): Promise<AnalyticsSummary> {
-    // Platform-native APIs generally don't have a single "summary" endpoint.
-    // This is a placeholder that returns a structure the agent can work with.
-    // A real implementation would aggregate from the platform's reporting API.
     const provider = this.platformProviders.get(platform);
     if (!provider) {
       throw new Error(`No provider configured for platform: ${platform}`);
     }
 
+    // Platform-native APIs generally don't have a single "summary" endpoint.
+    // A real implementation would aggregate from the platform's reporting API.
     return {
       platform,
       periodStart,
@@ -56,6 +52,25 @@ export class PlatformNativeAnalyticsProvider implements AnalyticsProvider {
       totalEngagements: 0,
       engagementRate: 0,
       topPost: undefined,
+    };
+  }
+
+  async getAudienceInsights(platform: PlatformName): Promise<AudienceInsights> {
+    const provider = this.platformProviders.get(platform);
+    if (!provider) {
+      throw new Error(`No provider configured for platform: ${platform}`);
+    }
+
+    // Audience insights require platform-specific reporting APIs.
+    // Twitter: GET /2/users/:id with user.fields=public_metrics
+    // Facebook: GET /{page-id}/insights
+    // LinkedIn: GET /organizationalEntityAcls + /followerStatistics
+    // Bluesky: limited — followers list only
+    // A full implementation would call those endpoints here.
+    return {
+      platform,
+      followerCount: 0,
+      followingCount: 0,
     };
   }
 }

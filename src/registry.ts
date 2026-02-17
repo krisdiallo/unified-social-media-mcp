@@ -13,6 +13,16 @@ import { FacebookProvider } from "./providers/platforms/facebook/index.js";
 import { LocalSchedulingProvider } from "./providers/scheduling/index.js";
 import { PlatformNativeAnalyticsProvider } from "./providers/analytics/index.js";
 import { UnsplashMediaProvider } from "./providers/media/index.js";
+import { PlatformEngagementProvider } from "./providers/engagement/index.js";
+import { PlatformTrendsProvider } from "./providers/trends/index.js";
+import { LocalCampaignProvider } from "./providers/campaigns/index.js";
+import { LocalLinkProvider } from "./providers/links/index.js";
+import { LocalWorkflowProvider } from "./providers/workflow/index.js";
+import { LocalTemplateProvider } from "./providers/templates/index.js";
+import { PlatformMonitoringProvider } from "./providers/monitoring/index.js";
+import { LocalReportingProvider } from "./providers/reporting/index.js";
+import { LocalProfileProvider } from "./providers/profile/index.js";
+import { TokenBucketRateLimiter } from "./providers/rate-limiter/index.js";
 
 export function buildRegistry(config: ServerConfig): ProviderRegistry {
   // -- Content generation ---------------------------------------------------
@@ -81,5 +91,51 @@ export function buildRegistry(config: ServerConfig): ProviderRegistry {
   // -- Media ----------------------------------------------------------------
   const media = new UnsplashMediaProvider(config.unsplashAccessKey ?? "");
 
-  return { contentGeneration, platforms, scheduling, analytics, media };
+  // -- Engagement -----------------------------------------------------------
+  const engagement = new PlatformEngagementProvider(platforms);
+
+  // -- Trends ---------------------------------------------------------------
+  const trends = new PlatformTrendsProvider();
+
+  // -- Campaigns ------------------------------------------------------------
+  const campaigns = new LocalCampaignProvider(scheduling);
+
+  // -- Links ----------------------------------------------------------------
+  const links = new LocalLinkProvider();
+
+  // -- Workflow -------------------------------------------------------------
+  const workflow = new LocalWorkflowProvider();
+
+  // -- Templates ------------------------------------------------------------
+  const templates = new LocalTemplateProvider();
+
+  // -- Monitoring -----------------------------------------------------------
+  const monitoring = new PlatformMonitoringProvider();
+
+  // -- Reporting ------------------------------------------------------------
+  const reporting = new LocalReportingProvider(analytics, campaigns);
+
+  // -- Profile --------------------------------------------------------------
+  const profile = new LocalProfileProvider([...platforms.keys()]);
+
+  // -- Rate Limiter ---------------------------------------------------------
+  const rateLimiter = new TokenBucketRateLimiter();
+
+  return {
+    contentGeneration,
+    platforms,
+    scheduling,
+    analytics,
+    media,
+    engagement,
+    trends,
+    campaigns,
+    links,
+    workflow,
+    templates,
+    monitoring,
+    reporting,
+    profile,
+    rateLimiter,
+  };
 }

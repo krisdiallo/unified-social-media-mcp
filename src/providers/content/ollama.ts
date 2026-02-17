@@ -6,6 +6,8 @@ import type {
   ContentGenerationProvider,
   GenerateContentRequest,
   GeneratedContent,
+  RepurposeRequest,
+  RepurposedContent,
 } from "../../types.js";
 
 const PLATFORM_GUIDELINES: Record<string, string> = {
@@ -43,6 +45,60 @@ export class OllamaContentProvider implements ContentGenerationProvider {
         : `Write a post about: ${request.topic}`,
     ].filter(Boolean).join("\n");
 
+    const text = await this.completion(prompt);
+    const hashtags = (text.match(/#\w+/g) ?? []).map((h) => h.slice(1));
+
+    return {
+      text,
+      hashtags,
+      platform: request.platform,
+      estimatedCharCount: text.length,
+    };
+  }
+
+  async repurpose(request: RepurposeRequest): Promise<RepurposedContent[]> {
+    const toneDirective = request.tone ? `Tone: ${request.tone}.` : "";
+    const platformList = request.targetPlatforms
+      .map((p) => `${p}: ${PLATFORM_GUIDELINES[p] ?? ""}`)
+      .join("\n");
+
+    const prompt = [
+      "You are a social media content repurposing expert.",
+      "Given a post originally written for one platform, adapt it for each target platform.",
+      "Each adaptation should feel native to that platform, not just copy-pasted.",
+      toneDirective,
+      "Return a JSON array of objects with fields: platform, text.",
+      "Return ONLY the JSON array, no markdown fences or explanation.",
+      "",
+      `Original platform: ${request.sourcePlatform}`,
+      `Original post:\n${request.originalText}`,
+      "",
+      `Adapt for these platforms:\n${platformList}`,
+    ].filter(Boolean).join("\n");
+
+    const raw = await this.completion(prompt);
+
+    let parsed: { platform: string; text: string }[];
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const jsonMatch = raw.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error("Failed to parse repurposed content from AI response");
+      parsed = JSON.parse(jsonMatch[0]);
+    }
+
+    return parsed.map((item) => {
+      const hashtags = (item.text.match(/#\w+/g) ?? []).map((h: string) => h.slice(1));
+      return {
+        platform: item.platform as RepurposedContent["platform"],
+        text: item.text,
+        hashtags,
+        estimatedCharCount: item.text.length,
+      };
+    });
+  }
+
+  private async completion(prompt: string): Promise<string> {
     const res = await fetch(`${this.baseUrl}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,14 +115,6 @@ export class OllamaContentProvider implements ContentGenerationProvider {
     }
 
     const json = (await res.json()) as { response: string };
-    const text = json.response?.trim() ?? "";
-    const hashtags = (text.match(/#\w+/g) ?? []).map((h) => h.slice(1));
-
-    return {
-      text,
-      hashtags,
-      platform: request.platform,
-      estimatedCharCount: text.length,
-    };
+    return json.response?.trim() ?? "";
   }
 }

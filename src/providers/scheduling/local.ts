@@ -35,12 +35,12 @@ export class LocalSchedulingProvider implements SchedulingProvider {
       platforms: request.platforms,
       scheduledAt: request.scheduledAt,
       status: "pending",
+      campaignId: request.campaignId,
     };
 
     this.posts.set(id, post);
 
     if (delay <= 0) {
-      // Publish immediately
       await this.publish(id);
     } else {
       const timer = setTimeout(() => {
@@ -72,8 +72,15 @@ export class LocalSchedulingProvider implements SchedulingProvider {
     post.status = "cancelled";
   }
 
-  async list(): Promise<ScheduledPost[]> {
-    return [...this.posts.values()];
+  async list(filters?: { campaignId?: string; status?: string }): Promise<ScheduledPost[]> {
+    let posts = [...this.posts.values()];
+    if (filters?.campaignId) {
+      posts = posts.filter((p) => p.campaignId === filters.campaignId);
+    }
+    if (filters?.status) {
+      posts = posts.filter((p) => p.status === filters.status);
+    }
+    return posts;
   }
 
   async get(scheduleId: string): Promise<ScheduledPost> {
@@ -81,8 +88,6 @@ export class LocalSchedulingProvider implements SchedulingProvider {
     if (!post) throw new Error(`Scheduled post ${scheduleId} not found`);
     return { ...post };
   }
-
-  // -- Internal -------------------------------------------------------------
 
   private async publish(id: string): Promise<void> {
     const post = this.posts.get(id);
