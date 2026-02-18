@@ -1,1 +1,1 @@
-export { LocalCampaignProvider } from "./local-campaigns.js";
+export { SqliteCampaignProvider } from "./sqlite-campaigns.js";

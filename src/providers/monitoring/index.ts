@@ -1,1 +1,1 @@
-export { PlatformMonitoringProvider } from "./platform-monitoring.js";
+export { SocialSearcherMonitoringProvider } from "./social-searcher.js";

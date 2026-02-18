@@ -1,1 +1,1 @@
-export { PlatformTrendsProvider } from "./platform-trends.js";
+export { MultiSourceTrendsProvider } from "./multi-source.js";

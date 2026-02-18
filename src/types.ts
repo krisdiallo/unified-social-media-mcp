@@ -2,53 +2,16 @@
 // Shared types for the unified social-media MCP server
 // ---------------------------------------------------------------------------
 
-// ---- Content Generation ---------------------------------------------------
-
-export interface GenerateContentRequest {
-  topic: string;
-  platform: PlatformName;
-  tone?: string;
-  maxLength?: number;
-  hashtags?: boolean;
-  /** Any additional context the user wants folded into the prompt. */
-  context?: string;
-}
-
-export interface GeneratedContent {
-  text: string;
-  hashtags: string[];
-  platform: PlatformName;
-  estimatedCharCount: number;
-}
-
-export interface RepurposeRequest {
-  originalText: string;
-  sourcePlatform: PlatformName;
-  targetPlatforms: PlatformName[];
-  tone?: string;
-}
-
-export interface RepurposedContent {
-  platform: PlatformName;
-  text: string;
-  hashtags: string[];
-  estimatedCharCount: number;
-}
-
-export interface ContentGenerationProvider {
-  readonly name: string;
-  generate(request: GenerateContentRequest): Promise<GeneratedContent>;
-  repurpose(request: RepurposeRequest): Promise<RepurposedContent[]>;
-}
-
-// ---- Platform / Posting ---------------------------------------------------
+// ---- Common ---------------------------------------------------------------
 
 export type PlatformName = "twitter" | "bluesky" | "linkedin" | "facebook";
+
+// ---- Platform / Posting ---------------------------------------------------
 
 export interface PostContent {
   text: string;
   mediaUrls?: string[];
-  /** Platform-specific extras (e.g. link preview settings). */
+  /** Platform-specific extras (e.g. reply_to_id, link preview settings). */
   extra?: Record<string, unknown>;
 }
 
@@ -80,6 +43,15 @@ export interface PollContent {
   durationMinutes: number;
 }
 
+export interface PostMetrics {
+  likes: number;
+  shares: number;
+  comments: number;
+  impressions: number;
+  clicks: number;
+  [key: string]: number;
+}
+
 export interface PlatformProvider {
   readonly name: string;
   readonly platform: PlatformName;
@@ -88,9 +60,20 @@ export interface PlatformProvider {
   getPost(postId: string): Promise<PostResult & { text: string; metrics?: PostMetrics }>;
   postThread?(posts: ThreadPost[]): Promise<ThreadResult>;
   postPoll?(poll: PollContent): Promise<PostResult>;
+  // Engagement — each platform implements its own API calls
+  getMentions?(sinceId?: string): Promise<Mention[]>;
+  getComments?(postId: string): Promise<Comment[]>;
+  reply?(postId: string, text: string): Promise<PostResult>;
+  likePost?(postId: string): Promise<void>;
+  unlikePost?(postId: string): Promise<void>;
+  getDirectMessages?(conversationId?: string): Promise<DirectMessage[]>;
+  sendDirectMessage?(recipientId: string, text: string): Promise<DirectMessage>;
+  // Analytics — platform-specific data access
+  getRecentPosts?(limit: number, cursor?: string): Promise<StoredPost[]>;
+  getAudienceInsights?(): Promise<AudienceInsights>;
 }
 
-// ---- Engagement / Community -----------------------------------------------
+// ---- Engagement types -----------------------------------------------------
 
 export interface Mention {
   id: string;
@@ -122,21 +105,32 @@ export interface DirectMessage {
   conversationId?: string;
 }
 
-export interface ReplyRequest {
-  platform: PlatformName;
-  postId: string;
-  text: string;
+// ---- Content Generation (optional — BYOM for image/video) -----------------
+
+export interface GenerateImageRequest {
+  prompt: string;
+  width?: number;
+  height?: number;
+  style?: string;
 }
 
-export interface EngagementProvider {
+export interface GenerateVideoRequest {
+  prompt: string;
+  durationSeconds?: number;
+  aspectRatio?: string;
+}
+
+export interface GeneratedMedia {
+  url: string;
+  mimeType: string;
+  width?: number;
+  height?: number;
+}
+
+export interface ContentGenerationProvider {
   readonly name: string;
-  getMentions(platform: PlatformName, sinceId?: string): Promise<Mention[]>;
-  getComments(platform: PlatformName, postId: string): Promise<Comment[]>;
-  reply(request: ReplyRequest): Promise<PostResult>;
-  getDirectMessages(platform: PlatformName, conversationId?: string): Promise<DirectMessage[]>;
-  sendDirectMessage(platform: PlatformName, recipientId: string, text: string): Promise<DirectMessage>;
-  likePost(platform: PlatformName, postId: string): Promise<void>;
-  unlikePost(platform: PlatformName, postId: string): Promise<void>;
+  generateImage?(request: GenerateImageRequest): Promise<GeneratedMedia>;
+  generateVideo?(request: GenerateVideoRequest): Promise<GeneratedMedia>;
 }
 
 // ---- Scheduling -----------------------------------------------------------
@@ -145,17 +139,18 @@ export interface ScheduledPost {
   id: string;
   content: PostContent;
   platforms: PlatformName[];
-  scheduledAt: string; // ISO-8601
+  scheduledAt: string;
   status: "pending" | "published" | "failed" | "cancelled";
   campaignId?: string;
   results?: PostResult[];
   error?: string;
+  createdAt: string;
 }
 
 export interface ScheduleRequest {
   content: PostContent;
   platforms: PlatformName[];
-  scheduledAt: string; // ISO-8601
+  scheduledAt: string;
   campaignId?: string;
 }
 
@@ -167,26 +162,16 @@ export interface SchedulingProvider {
   get(scheduleId: string): Promise<ScheduledPost>;
 }
 
-// ---- Analytics ------------------------------------------------------------
+// ---- Analytics / Post History ---------------------------------------------
 
-export interface PostMetrics {
-  likes: number;
-  shares: number;
-  comments: number;
-  impressions: number;
-  clicks: number;
-  [key: string]: number; // extensible
-}
-
-export interface AnalyticsSummary {
+export interface StoredPost {
+  id: string;
   platform: PlatformName;
-  periodStart: string;
-  periodEnd: string;
-  totalPosts: number;
-  totalImpressions: number;
-  totalEngagements: number;
-  engagementRate: number;
-  topPost?: { id: string; metrics: PostMetrics };
+  text: string;
+  mediaUrls?: string[];
+  createdAt: string;
+  metrics?: PostMetrics;
+  campaignId?: string;
 }
 
 export interface AudienceInsights {
@@ -206,11 +191,14 @@ export interface AudienceInsights {
 export interface AnalyticsProvider {
   readonly name: string;
   getPostMetrics(platform: PlatformName, postId: string): Promise<PostMetrics>;
-  getSummary(platform: PlatformName, periodStart: string, periodEnd: string): Promise<AnalyticsSummary>;
+  /** Sync recent posts from platform into local storage for historical analysis. */
+  syncPosts(platform: PlatformName, limit?: number): Promise<StoredPost[]>;
+  /** Query locally-stored post history. */
+  getPostHistory(platform: PlatformName, limit: number, offset?: number): Promise<StoredPost[]>;
   getAudienceInsights(platform: PlatformName): Promise<AudienceInsights>;
 }
 
-// ---- Media ----------------------------------------------------------------
+// ---- Media Management -----------------------------------------------------
 
 export interface MediaItem {
   id: string;
@@ -219,32 +207,35 @@ export interface MediaItem {
   width?: number;
   height?: number;
   sizeBytes?: number;
-}
-
-export interface SearchMediaRequest {
-  query: string;
-  count?: number;
-}
-
-export interface ResizeMediaRequest {
-  url: string;
-  width: number;
-  height: number;
+  tags?: string[];
 }
 
 export interface MediaProvider {
   readonly name: string;
-  search(request: SearchMediaRequest): Promise<MediaItem[]>;
-  resize(request: ResizeMediaRequest): Promise<MediaItem>;
+  /** Search stock images (Unsplash, etc.). */
+  searchStock?(query: string, count?: number): Promise<MediaItem[]>;
+  /** Upload a file from URL to the media storage backend. */
+  upload(sourceUrl: string, filename?: string, tags?: string[]): Promise<MediaItem>;
+  /** List user's uploaded media. */
+  list(filters?: { tags?: string[]; mimeType?: string }): Promise<MediaItem[]>;
+  /** Get a specific media item. */
+  get(mediaId: string): Promise<MediaItem>;
+  /** Delete a media item. */
+  delete(mediaId: string): Promise<void>;
+  /** Resize an image. */
+  resize(mediaId: string, width: number, height: number): Promise<MediaItem>;
 }
 
-// ---- Hashtag & Trend Research ---------------------------------------------
+// ---- Trend Research -------------------------------------------------------
+
+export type TrendSource = "google" | "reddit" | PlatformName;
 
 export interface TrendingTopic {
   name: string;
   volume?: number;
   url?: string;
-  platform: PlatformName;
+  source: TrendSource;
+  region?: string;
 }
 
 export interface HashtagInfo {
@@ -252,13 +243,45 @@ export interface HashtagInfo {
   postCount?: number;
   recentGrowth?: string;
   relatedTags?: string[];
+  source: TrendSource;
 }
 
 export interface TrendsProvider {
   readonly name: string;
-  getTrending(platform: PlatformName, region?: string): Promise<TrendingTopic[]>;
+  getTrending(source: TrendSource, region?: string): Promise<TrendingTopic[]>;
   lookupHashtag(platform: PlatformName, tag: string): Promise<HashtagInfo>;
   suggestHashtags(platform: PlatformName, text: string): Promise<string[]>;
+}
+
+// ---- Ideas Pipeline -------------------------------------------------------
+
+export type IdeaStatus = "idea" | "draft" | "pending_review" | "approved" | "rejected" | "scheduled" | "published";
+
+export interface Idea {
+  id: string;
+  content: string;
+  platforms: PlatformName[];
+  status: IdeaStatus;
+  mediaUrls?: string[];
+  campaignId?: string;
+  scheduledAt?: string;
+  tags?: string[];
+  notes?: string;
+  createdBy?: string;
+  reviewedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdeasProvider {
+  readonly name: string;
+  create(idea: Omit<Idea, "id" | "status" | "createdAt" | "updatedAt">): Promise<Idea>;
+  get(ideaId: string): Promise<Idea>;
+  update(ideaId: string, updates: Partial<Pick<Idea, "content" | "platforms" | "mediaUrls" | "campaignId" | "scheduledAt" | "tags" | "notes">>): Promise<Idea>;
+  delete(ideaId: string): Promise<void>;
+  list(filters?: { status?: IdeaStatus; campaignId?: string; tags?: string[] }): Promise<Idea[]>;
+  /** Advance through the pipeline: idea → draft → pending_review → approved/rejected → scheduled → published */
+  advance(ideaId: string, targetStatus: IdeaStatus, notes?: string): Promise<Idea>;
 }
 
 // ---- Campaign & Content Calendar ------------------------------------------
@@ -272,29 +295,30 @@ export interface Campaign {
   platforms: PlatformName[];
   status: "draft" | "active" | "paused" | "completed";
   tags?: string[];
-  postIds: string[];
+  createdAt: string;
 }
 
 export interface CalendarEntry {
   id: string;
-  scheduledAt: string;
+  type: "idea" | "scheduled" | "published";
+  date: string;
   platform: PlatformName;
-  content: PostContent;
-  status: "draft" | "scheduled" | "published" | "failed";
+  content: string;
+  status: string;
   campaignId?: string;
 }
 
 export interface CampaignProvider {
   readonly name: string;
-  createCampaign(campaign: Omit<Campaign, "id" | "postIds">): Promise<Campaign>;
-  getCampaign(campaignId: string): Promise<Campaign>;
-  updateCampaign(campaignId: string, updates: Partial<Pick<Campaign, "name" | "description" | "status" | "endDate" | "tags">>): Promise<Campaign>;
-  deleteCampaign(campaignId: string): Promise<void>;
-  listCampaigns(filters?: { status?: string }): Promise<Campaign[]>;
+  create(campaign: Omit<Campaign, "id" | "createdAt">): Promise<Campaign>;
+  get(campaignId: string): Promise<Campaign>;
+  update(campaignId: string, updates: Partial<Pick<Campaign, "name" | "description" | "status" | "endDate" | "tags">>): Promise<Campaign>;
+  delete(campaignId: string): Promise<void>;
+  list(filters?: { status?: string }): Promise<Campaign[]>;
   getCalendar(startDate: string, endDate: string, platform?: PlatformName): Promise<CalendarEntry[]>;
 }
 
-// ---- Link Management ------------------------------------------------------
+// ---- Link Management (Dub.co) ---------------------------------------------
 
 export interface ShortenedLink {
   id: string;
@@ -320,64 +344,11 @@ export interface LinkProvider {
   listLinks(): Promise<ShortenedLink[]>;
 }
 
-// ---- Approval / Draft Workflow --------------------------------------------
-
-export type DraftStatus = "draft" | "pending_review" | "approved" | "rejected" | "published";
-
-export interface Draft {
-  id: string;
-  content: PostContent;
-  platforms: PlatformName[];
-  status: DraftStatus;
-  createdAt: string;
-  updatedAt: string;
-  scheduledAt?: string;
-  campaignId?: string;
-  reviewNotes?: string;
-  createdBy?: string;
-  reviewedBy?: string;
-}
-
-export interface WorkflowProvider {
-  readonly name: string;
-  createDraft(draft: Omit<Draft, "id" | "status" | "createdAt" | "updatedAt">): Promise<Draft>;
-  getDraft(draftId: string): Promise<Draft>;
-  updateDraft(draftId: string, updates: Partial<Pick<Draft, "content" | "platforms" | "scheduledAt" | "campaignId">>): Promise<Draft>;
-  submitForReview(draftId: string): Promise<Draft>;
-  approve(draftId: string, notes?: string): Promise<Draft>;
-  reject(draftId: string, notes: string): Promise<Draft>;
-  listDrafts(filters?: { status?: DraftStatus; campaignId?: string }): Promise<Draft[]>;
-  deleteDraft(draftId: string): Promise<void>;
-}
-
-// ---- Template Management --------------------------------------------------
-
-export interface Template {
-  id: string;
-  name: string;
-  description?: string;
-  content: string;
-  platforms: PlatformName[];
-  variables: string[]; // e.g. ["product_name", "link"]
-  tags?: string[];
-  createdAt: string;
-}
-
-export interface TemplateProvider {
-  readonly name: string;
-  createTemplate(template: Omit<Template, "id" | "createdAt">): Promise<Template>;
-  getTemplate(templateId: string): Promise<Template>;
-  updateTemplate(templateId: string, updates: Partial<Omit<Template, "id" | "createdAt">>): Promise<Template>;
-  deleteTemplate(templateId: string): Promise<void>;
-  listTemplates(filters?: { platform?: PlatformName; tags?: string[] }): Promise<Template[]>;
-  renderTemplate(templateId: string, variables: Record<string, string>): Promise<string>;
-}
-
-// ---- Brand Monitoring / Competitor Analysis -------------------------------
+// ---- Brand Monitoring -----------------------------------------------------
 
 export interface BrandMention {
   id: string;
-  platform: PlatformName;
+  platform: string;
   authorHandle: string;
   text: string;
   sentiment: "positive" | "neutral" | "negative";
@@ -396,8 +367,8 @@ export interface CompetitorProfile {
 
 export interface MonitoringProvider {
   readonly name: string;
-  searchMentions(platform: PlatformName, query: string, since?: string): Promise<BrandMention[]>;
-  analyzeSentiment(platform: PlatformName, query: string, since?: string): Promise<{
+  searchMentions(query: string, platform?: PlatformName, since?: string): Promise<BrandMention[]>;
+  analyzeSentiment(query: string, platform?: PlatformName, since?: string): Promise<{
     positive: number;
     neutral: number;
     negative: number;
@@ -407,34 +378,23 @@ export interface MonitoringProvider {
   getCompetitorProfile(platform: PlatformName, handle: string): Promise<CompetitorProfile>;
 }
 
-// ---- Reporting & Export ---------------------------------------------------
+// ---- Brand Context --------------------------------------------------------
 
-export interface ReportConfig {
-  platforms: PlatformName[];
-  periodStart: string;
-  periodEnd: string;
-  includeMetrics?: boolean;
-  includeAudience?: boolean;
-  includeCampaigns?: boolean;
-  includeTopPosts?: boolean;
-  format: "json" | "csv" | "markdown";
+export interface BrandContext {
+  key: string;
+  value: string;
+  updatedAt: string;
 }
 
-export interface Report {
-  id: string;
-  generatedAt: string;
-  config: ReportConfig;
-  data: Record<string, unknown>;
-  formatted: string;
-}
-
-export interface ReportingProvider {
+export interface BrandContextProvider {
   readonly name: string;
-  generateReport(config: ReportConfig): Promise<Report>;
-  exportPostData(platform: PlatformName, postIds: string[], format: "json" | "csv"): Promise<string>;
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  getAll(): Promise<BrandContext[]>;
+  delete(key: string): Promise<void>;
 }
 
-// ---- Multi-Account & Profile Management -----------------------------------
+// ---- Profile Management ---------------------------------------------------
 
 export interface SocialProfile {
   accountId: string;
@@ -480,19 +440,17 @@ export interface RateLimiter {
 // ---- Provider Registry ----------------------------------------------------
 
 export interface ProviderRegistry {
-  contentGeneration: ContentGenerationProvider;
   platforms: Map<PlatformName, PlatformProvider>;
+  contentGeneration?: ContentGenerationProvider;
   scheduling: SchedulingProvider;
   analytics: AnalyticsProvider;
   media: MediaProvider;
-  engagement: EngagementProvider;
   trends: TrendsProvider;
+  ideas: IdeasProvider;
   campaigns: CampaignProvider;
   links: LinkProvider;
-  workflow: WorkflowProvider;
-  templates: TemplateProvider;
   monitoring: MonitoringProvider;
-  reporting: ReportingProvider;
+  brandContext: BrandContextProvider;
   profile: ProfileProvider;
   rateLimiter: RateLimiter;
 }

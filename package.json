@@ -1,7 +1,7 @@
 {
   "name": "unified-social-media-mcp",
-  "version": "0.1.0",
-  "description": "A unified MCP server for social media management — content generation, scheduling, posting, analytics, and media management with swappable provider backends.",
+  "version": "1.0.0",
+  "description": "A unified MCP server for social media management — scheduling, posting, analytics, media, ideas pipeline, campaigns, link management, brand monitoring, and more with swappable provider backends.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -16,14 +16,21 @@
     "type": "git",
     "url": "http://local_proxy@127.0.0.1:28020/git/krisdiallo/unified-social-media-mcp"
   },
-  "keywords": ["mcp", "social-media", "ai", "automation"],
+  "keywords": [
+    "mcp",
+    "social-media",
+    "ai",
+    "automation"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "better-sqlite3": "^12.6.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.2.3",
     "typescript": "^5.9.3"
   }

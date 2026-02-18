@@ -1,1 +1,1 @@
-export { LocalLinkProvider } from "./local-links.js";
+export { DubLinkProvider } from "./dub.js";

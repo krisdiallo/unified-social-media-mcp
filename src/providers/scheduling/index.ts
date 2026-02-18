@@ -1,1 +1,1 @@
-export { LocalSchedulingProvider } from "./local.js";
+export { SqliteSchedulingProvider } from "./sqlite-scheduling.js";

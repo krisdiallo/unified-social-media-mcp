@@ -1,1 +1,1 @@
-export { UnsplashMediaProvider } from "./unsplash.js";
+export { CloudinaryMediaProvider } from "./cloudinary.js";

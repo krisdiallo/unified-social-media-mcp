@@ -5,25 +5,25 @@
 import type { PlatformName } from "../types.js";
 
 export interface ServerConfig {
-  // Content generation
-  contentProvider: "openai" | "ollama";
-  openaiApiKey?: string;
-  openaiModel?: string;
-  ollamaBaseUrl?: string;
-  ollamaModel?: string;
-
   // Platform credentials
   platforms: Partial<Record<PlatformName, PlatformCredentials>>;
 
-  // Scheduling
-  schedulingProvider: "local";
+  // Cloudinary (media management)
+  cloudinaryCloudName?: string;
+  cloudinaryApiKey?: string;
+  cloudinaryApiSecret?: string;
 
-  // Analytics
-  analyticsProvider: "platform-native";
-
-  // Media
-  mediaProvider: "unsplash";
+  // Unsplash (stock image search)
   unsplashAccessKey?: string;
+
+  // Dub.co (link management)
+  dubApiKey?: string;
+
+  // Social Searcher (brand monitoring)
+  socialSearcherApiKey?: string;
+
+  // SQLite DB path override (default: ~/.social-mcp/data.db)
+  dbPath?: string;
 }
 
 export interface PlatformCredentials {
@@ -83,18 +83,18 @@ export function loadConfig(): ServerConfig {
   }
 
   return {
-    contentProvider: (env.CONTENT_PROVIDER as "openai" | "ollama") ?? "openai",
-    openaiApiKey: env.OPENAI_API_KEY,
-    openaiModel: env.OPENAI_MODEL ?? "gpt-4o-mini",
-    ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://localhost:11434",
-    ollamaModel: env.OLLAMA_MODEL ?? "llama3",
-
     platforms,
 
-    schedulingProvider: "local",
-    analyticsProvider: "platform-native",
+    cloudinaryCloudName: env.CLOUDINARY_CLOUD_NAME,
+    cloudinaryApiKey: env.CLOUDINARY_API_KEY,
+    cloudinaryApiSecret: env.CLOUDINARY_API_SECRET,
 
-    mediaProvider: "unsplash",
     unsplashAccessKey: env.UNSPLASH_ACCESS_KEY,
+
+    dubApiKey: env.DUB_API_KEY,
+
+    socialSearcherApiKey: env.SOCIAL_SEARCHER_API_KEY,
+
+    dbPath: env.SOCIAL_MCP_DB_PATH,
   };
 }

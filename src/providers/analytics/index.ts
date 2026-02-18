@@ -1,1 +1,1 @@
-export { PlatformNativeAnalyticsProvider } from "./platform-native.js";
+export { SqliteAnalyticsProvider } from "./sqlite-analytics.js";

@@ -5,32 +5,23 @@
 import type { ProviderRegistry, PlatformName, PlatformProvider } from "./types.js";
 import type { ServerConfig } from "./config/index.js";
 
-import { OpenAIContentProvider, OllamaContentProvider } from "./providers/content/index.js";
 import { TwitterProvider } from "./providers/platforms/twitter/index.js";
 import { BlueskyProvider } from "./providers/platforms/bluesky/index.js";
 import { LinkedInProvider } from "./providers/platforms/linkedin/index.js";
 import { FacebookProvider } from "./providers/platforms/facebook/index.js";
-import { LocalSchedulingProvider } from "./providers/scheduling/index.js";
-import { PlatformNativeAnalyticsProvider } from "./providers/analytics/index.js";
-import { UnsplashMediaProvider } from "./providers/media/index.js";
-import { PlatformEngagementProvider } from "./providers/engagement/index.js";
-import { PlatformTrendsProvider } from "./providers/trends/index.js";
-import { LocalCampaignProvider } from "./providers/campaigns/index.js";
-import { LocalLinkProvider } from "./providers/links/index.js";
-import { LocalWorkflowProvider } from "./providers/workflow/index.js";
-import { LocalTemplateProvider } from "./providers/templates/index.js";
-import { PlatformMonitoringProvider } from "./providers/monitoring/index.js";
-import { LocalReportingProvider } from "./providers/reporting/index.js";
+import { SqliteSchedulingProvider } from "./providers/scheduling/index.js";
+import { SqliteAnalyticsProvider } from "./providers/analytics/index.js";
+import { CloudinaryMediaProvider } from "./providers/media/index.js";
+import { MultiSourceTrendsProvider } from "./providers/trends/index.js";
+import { SqliteIdeasProvider } from "./providers/ideas/index.js";
+import { SqliteCampaignProvider } from "./providers/campaigns/index.js";
+import { DubLinkProvider } from "./providers/links/index.js";
+import { SocialSearcherMonitoringProvider } from "./providers/monitoring/index.js";
+import { SqliteBrandContextProvider } from "./providers/brand-context/index.js";
 import { LocalProfileProvider } from "./providers/profile/index.js";
 import { TokenBucketRateLimiter } from "./providers/rate-limiter/index.js";
 
 export function buildRegistry(config: ServerConfig): ProviderRegistry {
-  // -- Content generation ---------------------------------------------------
-  const contentGeneration =
-    config.contentProvider === "ollama"
-      ? new OllamaContentProvider(config.ollamaBaseUrl, config.ollamaModel)
-      : new OpenAIContentProvider(config.openaiApiKey ?? "", config.openaiModel);
-
   // -- Platform providers ---------------------------------------------------
   const platforms = new Map<PlatformName, PlatformProvider>();
 
@@ -83,37 +74,35 @@ export function buildRegistry(config: ServerConfig): ProviderRegistry {
   }
 
   // -- Scheduling -----------------------------------------------------------
-  const scheduling = new LocalSchedulingProvider(platforms);
+  const scheduling = new SqliteSchedulingProvider(platforms);
 
   // -- Analytics ------------------------------------------------------------
-  const analytics = new PlatformNativeAnalyticsProvider(platforms);
+  const analytics = new SqliteAnalyticsProvider(platforms);
 
   // -- Media ----------------------------------------------------------------
-  const media = new UnsplashMediaProvider(config.unsplashAccessKey ?? "");
-
-  // -- Engagement -----------------------------------------------------------
-  const engagement = new PlatformEngagementProvider(platforms);
+  const media = new CloudinaryMediaProvider(
+    config.cloudinaryCloudName ?? "",
+    config.cloudinaryApiKey ?? "",
+    config.cloudinaryApiSecret ?? "",
+  );
 
   // -- Trends ---------------------------------------------------------------
-  const trends = new PlatformTrendsProvider();
+  const trends = new MultiSourceTrendsProvider();
+
+  // -- Ideas ----------------------------------------------------------------
+  const ideas = new SqliteIdeasProvider();
 
   // -- Campaigns ------------------------------------------------------------
-  const campaigns = new LocalCampaignProvider(scheduling);
+  const campaigns = new SqliteCampaignProvider();
 
   // -- Links ----------------------------------------------------------------
-  const links = new LocalLinkProvider();
-
-  // -- Workflow -------------------------------------------------------------
-  const workflow = new LocalWorkflowProvider();
-
-  // -- Templates ------------------------------------------------------------
-  const templates = new LocalTemplateProvider();
+  const links = new DubLinkProvider(config.dubApiKey ?? "");
 
   // -- Monitoring -----------------------------------------------------------
-  const monitoring = new PlatformMonitoringProvider();
+  const monitoring = new SocialSearcherMonitoringProvider(config.socialSearcherApiKey);
 
-  // -- Reporting ------------------------------------------------------------
-  const reporting = new LocalReportingProvider(analytics, campaigns);
+  // -- Brand Context --------------------------------------------------------
+  const brandContext = new SqliteBrandContextProvider();
 
   // -- Profile --------------------------------------------------------------
   const profile = new LocalProfileProvider([...platforms.keys()]);
@@ -122,19 +111,16 @@ export function buildRegistry(config: ServerConfig): ProviderRegistry {
   const rateLimiter = new TokenBucketRateLimiter();
 
   return {
-    contentGeneration,
     platforms,
     scheduling,
     analytics,
     media,
-    engagement,
     trends,
+    ideas,
     campaigns,
     links,
-    workflow,
-    templates,
     monitoring,
-    reporting,
+    brandContext,
     profile,
     rateLimiter,
   };
