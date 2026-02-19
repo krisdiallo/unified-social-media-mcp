@@ -1,6 +1,6 @@
 # Unified Social Media MCP Server
 
-An MCP (Model Context Protocol) server that gives AI agents comprehensive social media management capabilities — content generation, cross-platform posting, community engagement, scheduling, analytics, campaign management, and more — through a single, unified interface with swappable provider backends.
+An MCP (Model Context Protocol) server that gives AI agents comprehensive social media management capabilities — cross-platform posting, scheduling, analytics, content pipeline, campaign management, media management, link tracking, brand monitoring, and more — through a single, unified interface with swappable provider backends.
 
 ## Architecture
 
@@ -8,33 +8,26 @@ The server is built around a **provider abstraction layer**. Every capability is
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                          MCP Server (50 tools)                          │
+│                         MCP Server (44 tools)                          │
 ├──────────────────────────────────────────────────────────────────────────┤
-│                          Provider Registry                              │
-├─────────┬──────────┬──────────┬──────────┬──────────┬────────┬──────────┤
-│ Content │ Platform │ Engage-  │ Sched-   │ Analyt-  │ Media  │ Trends   │
-│ Gener.  │ Posting  │ ment     │ uling    │ ics      │ Mgmt   │ Research │
-├─────────┼──────────┼──────────┼──────────┼──────────┼────────┼──────────┤
-│ OpenAI  │ Twitter  │ Platform │ Local    │ Platform │Unsplash│ Platform │
-│ Ollama  │ Bluesky  │ Native   │ (swap w/ │ Native   │(swap w/│ Native   │
-│         │ LinkedIn │          │ Buffer)  │          │Cloudi- │          │
-│         │ Facebook │          │          │          │nary)   │          │
-├─────────┴──────────┴──────────┼──────────┼──────────┴────────┴──────────┤
-│ Campaigns │ Links │ Workflow  │Templates │ Monitoring│Reporting│ Profile │
-├───────────┼───────┼───────────┼──────────┼───────────┼─────────┼─────────┤
-│ Local     │ Local │ Local     │ Local    │ Platform  │ Local   │ Local   │
-│ (swap w/  │(swap  │ (swap w/  │ (swap w/ │ Native    │         │         │
-│  Notion)  │Bitly) │ Planable) │ DB)      │ (Brandw.) │         │         │
-└───────────┴───────┴───────────┴──────────┴───────────┴─────────┴─────────┘
+│                         Provider Registry                              │
+├──────────┬──────────┬──────────┬──────────┬──────────┬──────────────────┤
+│ Platform │ Sched-   │ Analyt-  │ Media    │ Trends   │ Ideas Pipeline   │
+│ Posting  │ uling    │ ics      │ Mgmt     │ Research │                  │
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────────────┤
+│ Twitter  │ SQLite   │ SQLite + │Cloudinary│ Google   │ SQLite           │
+│ Bluesky  │          │ Platform │+ Unsplash│ Trends + │                  │
+│ LinkedIn │          │ APIs     │          │ Reddit   │                  │
+│ Facebook │          │          │          │          │                  │
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────────────┤
+│Campaigns │ Links    │Monitoring│ Brand    │ Profile  │ Rate Limiter     │
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────────────┤
+│ SQLite   │ Dub.co   │ Social   │ SQLite   │ Local    │ Token Bucket     │
+│          │          │ Searcher │          │          │                  │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────────────┘
 ```
 
-## MCP Tools (50 total)
-
-### Content Generation (2)
-| Tool | Description |
-|---|---|
-| `generate_content` | Generate a platform-optimized post using AI |
-| `repurpose_content` | Adapt a post for other platforms (adjusts tone, length, format) |
+## MCP Tools (44 total)
 
 ### Platform Posting (7)
 | Tool | Description |
@@ -47,7 +40,7 @@ The server is built around a **provider abstraction layer**. Every capability is
 | `get_post` | Retrieve a post and its metrics |
 | `list_configured_platforms` | List available platforms |
 
-### Engagement / Community (7)
+### Engagement (7)
 | Tool | Description |
 |---|---|
 | `get_mentions` | Get recent mentions of your account |
@@ -66,25 +59,40 @@ The server is built around a **provider abstraction layer**. Every capability is
 | `list_scheduled_posts` | List scheduled posts (filterable by campaign/status) |
 | `get_scheduled_post` | Get a scheduled post's details |
 
-### Analytics (3)
+### Analytics & Post History (4)
 | Tool | Description |
 |---|---|
 | `get_post_metrics` | Get engagement metrics for a post |
-| `get_analytics_summary` | Get analytics summary for a time period |
+| `sync_posts` | Pull recent posts into local storage for historical analysis |
+| `get_post_history` | Query locally-stored post history |
 | `get_audience_insights` | Get follower demographics, growth, best posting times |
 
-### Media (2)
+### Media Management (6)
 | Tool | Description |
 |---|---|
-| `search_media` | Search for stock photos |
-| `resize_media` | Resize an image for a platform |
+| `search_stock_media` | Search for stock photos (Unsplash) |
+| `upload_media` | Upload media from URL to Cloudinary |
+| `list_media` | List uploaded media (filterable by tags/type) |
+| `get_media` | Get details of a media item |
+| `delete_media` | Delete a media item |
+| `resize_media` | Get a resized version via Cloudinary transformations |
 
-### Hashtag & Trend Research (3)
+### Trends & Hashtags (3)
 | Tool | Description |
 |---|---|
-| `get_trending_topics` | Get trending topics on a platform |
+| `get_trending_topics` | Get trending topics from Google Trends, Reddit, or a platform |
 | `lookup_hashtag` | Look up hashtag stats and related tags |
 | `suggest_hashtags` | Suggest hashtags for a piece of text |
+
+### Ideas Pipeline (6)
+| Tool | Description |
+|---|---|
+| `create_idea` | Create a new content idea |
+| `get_idea` | Get idea details |
+| `update_idea` | Update an idea's content or metadata |
+| `delete_idea` | Delete an idea |
+| `list_ideas` | List ideas (filterable by status/campaign/tags) |
+| `advance_idea` | Advance through: idea → draft → pending_review → approved/rejected → scheduled → published |
 
 ### Campaigns & Calendar (6)
 | Tool | Description |
@@ -94,50 +102,30 @@ The server is built around a **provider abstraction layer**. Every capability is
 | `update_campaign` | Update a campaign |
 | `delete_campaign` | Delete a campaign |
 | `list_campaigns` | List all campaigns |
-| `get_content_calendar` | Get a calendar view of scheduled content |
+| `get_content_calendar` | Get a unified calendar view of ideas, scheduled posts, and published content |
 
 ### Link Management (4)
 | Tool | Description |
 |---|---|
-| `shorten_link` | Shorten a URL |
+| `shorten_link` | Shorten a URL (Dub.co) |
 | `add_utm_params` | Add UTM tracking parameters |
 | `get_link_stats` | Get click stats for a link |
 | `list_links` | List all shortened links |
 
-### Draft / Approval Workflow (8)
-| Tool | Description |
-|---|---|
-| `create_draft` | Create a draft post |
-| `get_draft` | Get draft details |
-| `update_draft` | Edit a draft |
-| `submit_draft_for_review` | Submit for review |
-| `approve_draft` | Approve a pending draft |
-| `reject_draft` | Reject with feedback |
-| `list_drafts` | List drafts (filterable) |
-| `delete_draft` | Delete a draft |
-
-### Templates (6)
-| Tool | Description |
-|---|---|
-| `create_template` | Create a reusable template with `{{variables}}` |
-| `get_template` | Get a template |
-| `list_templates` | List templates (filterable) |
-| `render_template` | Render a template with variable values |
-| `update_template` | Update a template |
-| `delete_template` | Delete a template |
-
 ### Brand Monitoring (3)
 | Tool | Description |
 |---|---|
-| `search_brand_mentions` | Search for brand/keyword mentions |
+| `search_brand_mentions` | Search for brand/keyword mentions (Social Searcher) |
 | `analyze_sentiment` | Analyze sentiment of mentions |
 | `get_competitor_profile` | Get competitor profile and activity |
 
-### Reporting (2)
+### Brand Context (4)
 | Tool | Description |
 |---|---|
-| `generate_report` | Generate a report (JSON, CSV, or Markdown) |
-| `export_post_data` | Export post metrics data |
+| `set_brand_context` | Store a brand context value (voice, audience, guidelines) |
+| `get_brand_context` | Retrieve a brand context value |
+| `list_brand_context` | List all stored brand context |
+| `delete_brand_context` | Delete a brand context key |
 
 ### Profile Management (4)
 | Tool | Description |
@@ -170,7 +158,7 @@ Copy `.env.example` to `.env` and fill in credentials for the providers you want
 cp .env.example .env
 ```
 
-You only need to configure the providers you plan to use. For example, if you only want Bluesky + Ollama, just set those variables.
+You only need to configure the providers you plan to use.
 
 ### 3. Add to your MCP client
 
@@ -183,8 +171,6 @@ Add this to your MCP client config (e.g. `claude_desktop_config.json`):
       "command": "node",
       "args": ["/path/to/unified-social-media-mcp/dist/index.js"],
       "env": {
-        "CONTENT_PROVIDER": "openai",
-        "OPENAI_API_KEY": "sk-...",
         "ENABLED_PLATFORMS": "bluesky",
         "BLUESKY_IDENTIFIER": "you.bsky.social",
         "BLUESKY_PASSWORD": "your-app-password"
@@ -202,70 +188,61 @@ To replace any provider:
 2. Add it to the registry in `src/registry.ts`
 3. Add any new config/env vars to `src/config/index.ts`
 
-The MCP tool definitions don't change at all — the agent's interface stays stable regardless of which backends are active.
+The MCP tool definitions don't change — the agent's interface stays stable regardless of which backends are active.
 
 ### Provider Interfaces
 
-| Interface | Methods | Default Implementation |
-|---|---|---|
-| `ContentGenerationProvider` | `generate()`, `repurpose()` | OpenAI, Ollama |
-| `PlatformProvider` | `post()`, `deletePost()`, `getPost()`, `postThread?()`, `postPoll?()` | Twitter, Bluesky, LinkedIn, Facebook |
-| `EngagementProvider` | `getMentions()`, `getComments()`, `reply()`, `likePost()`, DMs | Platform-native |
-| `SchedulingProvider` | `schedule()`, `cancel()`, `list()`, `get()` | Local (in-memory) |
-| `AnalyticsProvider` | `getPostMetrics()`, `getSummary()`, `getAudienceInsights()` | Platform-native |
-| `MediaProvider` | `search()`, `resize()` | Unsplash |
-| `TrendsProvider` | `getTrending()`, `lookupHashtag()`, `suggestHashtags()` | Platform-native |
-| `CampaignProvider` | `createCampaign()`, CRUD, `getCalendar()` | Local (in-memory) |
-| `LinkProvider` | `shorten()`, `addUTM()`, `getLinkStats()` | Local (in-memory) |
-| `WorkflowProvider` | `createDraft()`, `submitForReview()`, `approve()`, `reject()` | Local (in-memory) |
-| `TemplateProvider` | `createTemplate()`, `renderTemplate()`, CRUD | Local (in-memory) |
-| `MonitoringProvider` | `searchMentions()`, `analyzeSentiment()`, `getCompetitorProfile()` | Platform-native |
-| `ReportingProvider` | `generateReport()`, `exportPostData()` | Local |
-| `ProfileProvider` | `listAccounts()`, `getProfile()`, `updateProfile()` | Local |
-| `RateLimiter` | `checkLimit()`, `getStatus()` | Token bucket |
+| Interface | Default Implementation |
+|---|---|
+| `PlatformProvider` | Twitter, Bluesky, LinkedIn, Facebook |
+| `SchedulingProvider` | SQLite + in-process timers |
+| `AnalyticsProvider` | SQLite post history + platform API delegation |
+| `MediaProvider` | Cloudinary (upload/resize) + Unsplash (stock search) |
+| `TrendsProvider` | Google Trends RSS + Reddit popular |
+| `IdeasProvider` | SQLite with status pipeline |
+| `CampaignProvider` | SQLite with calendar view |
+| `LinkProvider` | Dub.co API |
+| `MonitoringProvider` | Social Searcher API |
+| `BrandContextProvider` | SQLite key-value store |
+| `ProfileProvider` | Local (file-based) |
+| `RateLimiter` | Token bucket (in-memory) |
 
 ## Project Structure
 
 ```
 src/
-├── index.ts                              # MCP server + 50 tool definitions
+├── index.ts                              # MCP server + tool definitions
 ├── types.ts                              # All shared interfaces
 ├── registry.ts                           # Provider instantiation from config
+├── db.ts                                 # SQLite schema & connection
 ├── config/
 │   └── index.ts                          # Env var loading
 └── providers/
-    ├── content/
-    │   ├── openai.ts                     # OpenAI content generation + repurposing
-    │   └── ollama.ts                     # Ollama (local LLM) content generation
     ├── platforms/
-    │   ├── twitter/index.ts              # Twitter/X API v2 (OAuth 1.0a)
+    │   ├── twitter/index.ts              # Twitter/X API v2
     │   ├── bluesky/index.ts              # Bluesky AT Protocol
     │   ├── linkedin/index.ts             # LinkedIn API v2
     │   └── facebook/index.ts             # Facebook Graph API
-    ├── engagement/
-    │   └── platform-engagement.ts        # Community management via platform APIs
     ├── scheduling/
-    │   └── local.ts                      # In-memory scheduler (setTimeout)
+    │   └── sqlite-scheduling.ts          # SQLite-backed scheduler with timers
     ├── analytics/
-    │   └── platform-native.ts            # Delegates to platform APIs
+    │   └── sqlite-analytics.ts           # Post history + platform API delegation
     ├── media/
-    │   └── unsplash.ts                   # Unsplash stock photo search
+    │   └── cloudinary.ts                 # Cloudinary upload/resize + Unsplash search
     ├── trends/
-    │   └── platform-trends.ts            # Hashtag & trend research
+    │   └── multi-source.ts               # Google Trends + Reddit trending
+    ├── ideas/
+    │   └── sqlite-ideas.ts               # Ideas pipeline with status machine
     ├── campaigns/
-    │   └── local-campaigns.ts            # Campaign & calendar management
+    │   └── sqlite-campaigns.ts           # Campaign CRUD + calendar
     ├── links/
-    │   └── local-links.ts               # URL shortening & UTM tracking
-    ├── workflow/
-    │   └── local-workflow.ts             # Draft → review → approve pipeline
-    ├── templates/
-    │   └── local-templates.ts            # Reusable content templates
+    │   └── dub.ts                        # Dub.co link shortening & UTM
     ├── monitoring/
-    │   └── platform-monitoring.ts        # Brand mentions & sentiment analysis
-    ├── reporting/
-    │   └── local-reporting.ts            # Report generation & data export
+    │   └── social-searcher.ts            # Social Searcher mentions & sentiment
+    ├── brand-context/
+    │   └── sqlite-brand-context.ts       # Persistent brand context store
     ├── profile/
-    │   └── local-profile.ts             # Multi-account & profile management
+    │   └── local-profile.ts              # Multi-account profile management
     └── rate-limiter/
         └── token-bucket.ts               # API rate limit tracking
 ```

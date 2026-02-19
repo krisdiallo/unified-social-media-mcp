@@ -105,34 +105,6 @@ export interface DirectMessage {
   conversationId?: string;
 }
 
-// ---- Content Generation (optional — BYOM for image/video) -----------------
-
-export interface GenerateImageRequest {
-  prompt: string;
-  width?: number;
-  height?: number;
-  style?: string;
-}
-
-export interface GenerateVideoRequest {
-  prompt: string;
-  durationSeconds?: number;
-  aspectRatio?: string;
-}
-
-export interface GeneratedMedia {
-  url: string;
-  mimeType: string;
-  width?: number;
-  height?: number;
-}
-
-export interface ContentGenerationProvider {
-  readonly name: string;
-  generateImage?(request: GenerateImageRequest): Promise<GeneratedMedia>;
-  generateVideo?(request: GenerateVideoRequest): Promise<GeneratedMedia>;
-}
-
 // ---- Scheduling -----------------------------------------------------------
 
 export interface ScheduledPost {
@@ -441,7 +413,6 @@ export interface RateLimiter {
 
 export interface ProviderRegistry {
   platforms: Map<PlatformName, PlatformProvider>;
-  contentGeneration?: ContentGenerationProvider;
   scheduling: SchedulingProvider;
   analytics: AnalyticsProvider;
   media: MediaProvider;

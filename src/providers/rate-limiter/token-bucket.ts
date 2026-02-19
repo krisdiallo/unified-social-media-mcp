@@ -78,22 +78,6 @@ export class TokenBucketRateLimiter implements RateLimiter {
     return statuses;
   }
 
-  /** Call this after making an API request to consume a token. */
-  consume(platform: PlatformName, endpoint: string): boolean {
-    const key = `${platform}:${endpoint}`;
-    const bucket = this.getOrCreateBucket(key);
-
-    if (Date.now() >= bucket.resetsAt) {
-      bucket.remaining = bucket.config.limit;
-      bucket.resetsAt = Date.now() + bucket.config.windowMs;
-    }
-
-    if (bucket.remaining <= 0) return false;
-
-    bucket.remaining--;
-    return true;
-  }
-
   private getOrCreateBucket(key: string): Bucket {
     let bucket = this.buckets.get(key);
     if (!bucket) {

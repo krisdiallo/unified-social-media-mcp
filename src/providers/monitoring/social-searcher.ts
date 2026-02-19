@@ -8,7 +8,6 @@ import type {
   BrandMention,
   CompetitorProfile,
   PlatformName,
-  PostMetrics,
 } from "../../types.js";
 
 const SOCIAL_SEARCHER_API = "https://api.social-searcher.com/v2";

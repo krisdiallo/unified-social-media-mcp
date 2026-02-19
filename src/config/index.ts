@@ -13,9 +13,6 @@ export interface ServerConfig {
   cloudinaryApiKey?: string;
   cloudinaryApiSecret?: string;
 
-  // Unsplash (stock image search)
-  unsplashAccessKey?: string;
-
   // Dub.co (link management)
   dubApiKey?: string;
 
@@ -88,8 +85,6 @@ export function loadConfig(): ServerConfig {
     cloudinaryCloudName: env.CLOUDINARY_CLOUD_NAME,
     cloudinaryApiKey: env.CLOUDINARY_API_KEY,
     cloudinaryApiSecret: env.CLOUDINARY_API_SECRET,
-
-    unsplashAccessKey: env.UNSPLASH_ACCESS_KEY,
 
     dubApiKey: env.DUB_API_KEY,
 
